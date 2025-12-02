@@ -1,34 +1,62 @@
+# Mini Office — Creación del ejecutable
+
+## Requisitos
+- Python 3.13
+- pipx y pipenv
+
+## 1) Preparación de herramientas
+```bash
 python -m pip install --user pipx
-python -m pipx ensurepath (reabrid la terminal)
+python -m pipx ensurepath   # reabre la terminal
 pipx install pipenv
-Inicializar el entorno → pipenv --python 3.13
-Instalar dependencias → pipenv install pyside6 pyinstaller
-Entrar al subshell →pipenv shell
+```
+
+## 2) Crear el entorno
+```bash
+pipenv --python 3.13
+```
+
+## 3) Instalar dependencias
+```bash
+pipenv install pyside6 pyinstaller
+```
+
+## 4) Probar la app en el entorno
+```bash
+pipenv shell
 python main.py
-Pipfile → qué paquetes usamos
-Pipfile.lock → versiones exactas
-Analiza tu script Python
-Encuentra las dependencias
-Genera un ejecutable para tu sistema
+```
+
+Notas:
+- `Pipfile`: paquetes usados
+- `Pipfile.lock`: versiones exactas
+
+## 5) Construcción del ejecutable (PyInstaller)
 Modos:
-→onedir (por defecto): carpeta con muchos archivos
-→onefile: un único .exe
+- onedir (por defecto): carpeta con muchos archivos
+- onefile: archivo único `.exe`
+
+Básico:
+```bash
 pyinstaller --onefile main.py
-Crea varios archivos y carpetas:
-Carpeta build/
-Carpeta dist/ → ENCONTRAREMOS NUESTRO EJECUTABLE
-Fichero main.spec
+```
+Genera:
+- `build/`
+- `dist/`  ← aquí queda el `.exe`
+- `main.spec`
+
+Variantes útiles:
+```bash
 pyinstaller --onefile --noconsole main.py
-Cambiar el nombre del ejecutable → pipenv run pyinstaller --onefile --noconsole --name
-MiApp main.py
-Añadir icono: → pipenv run pyinstaller --onefile --noconsole --name MiApp
---icon=icono.ico main.py
-Añadir carpetas: --add-data "resources;resources"
-→Copia la carpeta resources dentro del paquete
-→La pone en una carpeta virtual también llamada resources
-Al ejecutar PyInstaller se crea main.spec.
-■ Qué script se empaqueta
-■ Recursos extra
-■ Nombre del ejecutable
-Podemos editar el .spec y luego reconstruir con:
+pipenv run pyinstaller --onefile --noconsole --name MiApp main.py
+pipenv run pyinstaller --onefile --noconsole --name MiApp --icon=icono.ico main.py
+pipenv run pyinstaller --onefile --noconsole --name MiApp --add-data "resources;resources" main.py
+```
+- `--add-data "resources;resources"` copia la carpeta `resources` al paquete
+
+Spec file:
+- PyInstaller crea `main.spec` (script, recursos, nombre)
+- Puedes editarlo y reconstruir:
+```bash
 pyinstaller main.spec
+```
