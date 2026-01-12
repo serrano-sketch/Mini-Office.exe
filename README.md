@@ -1,121 +1,54 @@
-# MiniOffice — Firmado digital con certificado de prueba (self‑signed)
+# Proceso de creación: reconocimiento de voz en Mini-office
 
-## 2️⃣ Crear un certificado de prueba (self-signed)
-(Fuente: diapositiva 13)
+Este documento resume cómo se añadió la función de reconocimiento de voz (dictado y comandos) a `practicafinalalpha.py`.
 
-Abrir PowerShell como Administrador y ejecutar:
+## 1. Dependencias
 
-```powershell
-New-SelfSignedCertificate -Type CodeSigningCert -Subject "MiniOffice Test Code Signing" -CertStoreLocation Cert:\CurrentUser\My
-```
+- `SpeechRecognition`: orquesta el reconocimiento y envía audio al backend de Google.
+- `PyAudio`: abre el micrófono (wrapper de PortAudio).
 
-Esto crea un certificado de firma de código dentro del almacén del usuario:
+En `Pipfile` y `requirements.txt` se añadieron estos paquetes. PortAudio se instaló vía Homebrew (`brew install portaudio`) para compilar PyAudio en macOS.
 
-```
-Cert:\CurrentUser\My
-```
+## 2. Integración en la UI
 
----
+- Se creó la acción `Dictado por voz` y se añadió a menú **Editar** y la toolbar.
+- La acción invoca `dictado_por_voz`, que controla todo el flujo de escucha y escritura.
 
-## 3️⃣ Comprobar el certificado creado
-(Fuente: diapositiva 14)
+## 3. Flujo `dictado_por_voz`
 
-1. Pulsa `Win + R`
-2. Escribe: `certmgr.msc`
-3. En la ventana, navega a: `Certificados → Personal → Certificados`
-4. Debe aparecer: `MiniOffice Test Code Signing`
+1) Importa `speech_recognition` y sale con aviso si falta.
+2) Configura un `Recognizer` y abre `Microphone` para grabar (con cursor de espera y mensaje "Escuchando...").
+3) Ajusta ruido ambiente y captura audio con `listen(timeout=5, phrase_time_limit=15)`, gestionando errores del micro.
+4) Envía el audio a `recognize_google(language="es-ES")`.
+5) Si el texto coincide con un comando, lo ejecuta; si no, inserta el dictado en el cursor.
+6) Maneja errores de reconocimiento (`UnknownValueError`, `RequestError`) mostrando avisos y restaura el cursor siempre.
 
----
+## 4. Comandos de voz soportados
 
-## 4️⃣ Exportar el certificado a un archivo .pfx
-(Fuente: diapositiva 15)
+- `negrita`: alterna peso de fuente en el cursor.
+- `cursiva`: alterna cursiva.
+- `subrayado`: alterna subrayado.
+- `guardar` / `guardar archivo`: llama a `guardar()`.
+- `nuevo` / `nuevo documento`: llama a `nuevo_documento()`.
 
-En PowerShell:
+La detección se hace en `procesar_comando_voz`, que devuelve `True` si se ejecutó un comando; de lo contrario, el texto se inserta tal cual.
 
-4.1 Pedir contraseña (no se muestra en texto):
-```powershell
-$password = Read-Host "Introduce una contraseña para el archivo .pfx" -AsSecureString
-```
+## 5. Helpers de formato
 
-4.2 Exportar el certificado:
-```powershell
-$cert = Get-ChildItem Cert:\CurrentUser\My | Where-Object {$_.Subject -like "*MiniOffice Test Code Signing*"}
-$pfxPath = "$env:USERPROFILE\Desktop\MiniOfficeTestCert.pfx"
+- `aplicar_formato` construye un `QTextCharFormat` y lo fusiona con el cursor y el formato actual para que el estilo siga aplicándose al texto siguiente.
 
-Export-PfxCertificate -Cert $cert -FilePath $pfxPath -Password $password
-```
+## 6. Detalles y buenas prácticas
 
-Esto genera un archivo en tu escritorio: `MiniOfficeTestCert.pfx`.
+- Se usa `QApplication.setOverrideCursor` para dar feedback visual y se restaura en un bloque `finally`.
+- Se mostraron mensajes en la barra de estado para cada etapa (escuchando, insertado, comandos ejecutados, errores).
+- Se ajustó `self.ruta_actual` para coherencia con guardado/autoguardado.
 
----
+## 7. Uso rápido
 
-## 5️⃣ Instalar el Windows SDK (para usar signtool)
-(Fuente: diapositiva 16)
+1) Instala dependencias (con red): `pip install SpeechRecognition PyAudio` (o `pipenv install`).
+2) Ejecuta la app: `python main.py`.
+3) Pulsa "Dictado por voz", habla y usa comandos anteriores; si no hay comando, el texto se inserta.
 
-Instala: `Windows SDK Signing Tools for Desktop Apps`.
+## Archivos relevantes
 
-Esto añade el programa necesario: `signtool.exe`.
-
----
-
-## 6️⃣ Localizar signtool.exe
-(Fuente: diapositiva 17)
-
-Rutas típicas:
-```
-C:\Program Files (x86)\Windows Kits\10\bin\VERSION\x64\signtool.exe
-```
-Ejemplo (según tu instalación):
-```
-C:\Program Files (x86)\Windows Kits\10\bin\10.0.26100.0\x64\signtool.exe
-```
-
----
-
-## 7️⃣ Firmar MiniOffice.exe
-(Fuente: diapositiva 18)
-
-```powershell
-"C:\Program Files (x86)\Windows Kits\10\bin\10.0.26100.0\x64\signtool.exe" sign `
-    /f "$env:USERPROFILE\Desktop\MiniOfficeTestCert.pfx" `
-    /p TU_CONTRASEÑA `
-    /fd SHA256 `
-    /tr http://timestamp.digicert.com `
-    /td sha256 `
-    "RUTA\A\TU\EXE\MiniOffice.exe"
-```
-
----
-
-## 8️⃣ Verificar la firma digital
-
-Opción A (PowerShell):
-```powershell
-"C:\Program Files (x86)\Windows Kits\10\bin\10.0.26100.0\x64\signtool.exe" verify /pa "RUTA\A\TU\EXE\MiniOffice.exe"
-```
-
-Opción B (Windows):
-- Clic derecho → Propiedades → pestaña "Firmas digitales"
-- Debe aparecer tu certificado
-
----
-
-## ✔ Conclusión
-Tras estos pasos:
-- Tienes un certificado self-signed
-- Lo has exportado como .pfx
-- Has firmado MiniOffice.exe
-- Puedes verificar su firma desde Windows
-
----
-
-## ¿Cómo subir este README a tu GitHub?
-
-1. Guarda este archivo como `README.md`
-2. Abre terminal en tu repositorio
-3. Ejecuta:
-```bash
-git add README.md
-git commit -m "Añadida documentación de firmado digital"
-git push origin main
-```
+- `practicafinalalpha.py`: implementación completa (copia en esta carpeta y en la raíz del proyecto).
